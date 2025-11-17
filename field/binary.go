@@ -160,9 +160,13 @@ func (f *Binary) Marshal(v interface{}) error {
 
 		f.value = buf
 	case []byte:
-		f.SetBytes(v)
+		if err := f.SetBytes(v); err != nil {
+			return err
+		}
 	case *[]byte:
-		f.SetBytes(*v)
+		if err := f.SetBytes(*v); err != nil {
+			return err
+		}
 	default:
 		kind := rv.Kind()
 		if kind == reflect.Ptr {

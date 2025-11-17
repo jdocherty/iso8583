@@ -65,7 +65,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		describeCommand.Parse(os.Args[2:])
+		if err := describeCommand.Parse(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing arguments: %v\n", err)
+			os.Exit(1)
+		}
 
 		var err error
 		if specFileName != nil && *specFileName != "" {

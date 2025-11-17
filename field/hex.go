@@ -154,9 +154,13 @@ func (f *Hex) Marshal(v interface{}) error {
 	case *string:
 		f.value = *v
 	case []byte:
-		f.SetBytes(v)
+		if err := f.SetBytes(v); err != nil {
+			return err
+		}
 	case *[]byte:
-		f.SetBytes(*v)
+		if err := f.SetBytes(*v); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("data does not match required *Hex or (string, *string, []byte, *[]byte) type")
 	}

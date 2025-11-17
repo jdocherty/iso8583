@@ -67,7 +67,9 @@ func Describe(message *Message, w io.Writer, filters ...FieldFilter) error {
 		return fmt.Errorf("describing message: %w", err)
 	}
 
-	tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return fmt.Errorf("flushing tabwriter: %w", err)
+	}
 
 	return nil
 }
@@ -119,7 +121,9 @@ func DescribeFieldContainer(container FieldContainer, w io.Writer, filters ...Fi
 		if container, ok := f.(FieldContainer); ok {
 			fmt.Fprintf(w, "F%-3s %s SUBFIELDS:\n", i, desc)
 			fmt.Fprintln(w, "-------------------------------------------")
-			DescribeFieldContainer(container, w, filters...)
+			if err := DescribeFieldContainer(container, w, filters...); err != nil {
+				return err
+			}
 			fmt.Fprintln(w, "------------------------------------------")
 			continue
 		}

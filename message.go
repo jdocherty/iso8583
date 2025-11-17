@@ -87,7 +87,8 @@ func (m *Message) MTI(val string) {
 	defer m.mu.Unlock()
 
 	m.fieldsMap[mtiIdx] = struct{}{}
-	m.fields[mtiIdx].SetBytes([]byte(val))
+	// MTI field is a String field which always returns nil error from SetBytes
+	_ = m.fields[mtiIdx].SetBytes([]byte(val)) // #nosec G104
 }
 
 func (m *Message) GetSpec() *MessageSpec {
@@ -396,7 +397,10 @@ func (m *Message) Clone() (*Message, error) {
 	}
 
 	newMessage.MTI(mti)
-	newMessage.Unpack(bytes)
+	err = newMessage.Unpack(bytes)
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = newMessage.Pack()
 	if err != nil {
