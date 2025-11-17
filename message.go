@@ -11,6 +11,7 @@ import (
 
 	"github.com/moov-io/iso8583/field"
 	"github.com/moov-io/iso8583/utils"
+	iso8583errors "github.com/moov-io/iso8583/errors"
 )
 
 var _ json.Marshaler = (*Message)(nil)
@@ -163,40 +164,176 @@ func (m *Message) getFields() map[int]field.Field {
 // If any errors are encountered during packing, they will be wrapped
 // in a *PackError before being returned.
 func (m *Message) Pack() ([]byte, error) {
-	return nil, errors.New("Pack: not implemented")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	return m.wrapErrorPack()
 }
 
 // wrapErrorPack calls the core packing logic and wraps any errors in a
 // *PackError. It assumes that the mutex is already locked by the caller.
 func (m *Message) wrapErrorPack() ([]byte, error) {
-	return nil, errors.New("wrapErrorPack: not implemented")
+	packed, err := m.pack()
+	if err != nil {
+		return nil, &iso8583errors.PackError{Err: fmt.Errorf("failed to pack message: %w", err)}
+	}
+	return packed, nil
 }
 
 // pack contains the core logic for packing the message. This method does not
 // handle locking or error wrapping and should typically be used internally
 // after ensuring concurrency safety.
 func (m *Message) pack() ([]byte, error) {
-	return nil, errors.New("pack: not implemented")
+	// Initialize bitmap
+	bitmap := m.bitmap()
+	bitmap.Reset()
+	
+	// Get packable field IDs (sorted, includes bitmap at index 1)
+	packableIDs, err := m.packableFieldIDs()
+	if err != nil {
+		return nil, err
+	}
+	
+	// Set bitmap bits for data fields
+	// Skip MTI (0), bitmap (1), and bitmap presence indicator bits
+	for _, id := range packableIDs {
+		// Skip MTI and bitmap
+		if id == mtiIdx || id == bitmapIdx {
+			continue
+		}
+		
+		// Skip bitmap presence indicator bits (1, 65, 129, 193, etc.)
+		if isBitmapPresenceBit(id) {
+			continue
+		}
+		
+		// Set the bit in the bitmap
+		bitmap.Set(id)
+	}
+	
+	// Pack fields in order
+	var packed []byte
+	for _, id := range packableIDs {
+		// Skip bitmap presence indicator bits (except the first bitmap itself at index 1)
+		if id != bitmapIdx && isBitmapPresenceBit(id) {
+			continue
+		}
+		
+		// Get the field
+		field, ok := m.fields[id]
+		if !ok {
+			return nil, fmt.Errorf("failed to pack field %d: no specification found", id)
+		}
+		
+		// Pack the field
+		data, err := field.Pack()
+		if err != nil {
+			desc := field.Spec().Description
+			return nil, fmt.Errorf("failed to pack field %d (%s): %w", id, desc, err)
+		}
+		
+		packed = append(packed, data...)
+	}
+	
+	return packed, nil
+}
+
+// isBitmapPresenceBit returns true if the field ID represents a bitmap presence indicator bit.
+// For a 64-bit bitmap, these are bits 1, 65, 129, 193, etc.
+func isBitmapPresenceBit(id int) bool {
+	// Bitmap presence bits are at positions n*64 + 1 for n >= 0
+	// For 64-bit bitmap: 1, 65, 129, 193, etc.
+	if id <= 0 {
+		return false
+	}
+	
+	const defaultBitmapBits = 64
+	return (id-1)%defaultBitmapBits == 0
 }
 
 // Unpack unpacks the message from the given byte slice or returns an error
 // which is of type *UnpackError and contains the raw message
 func (m *Message) Unpack(src []byte) error {
-	return errors.New("Unpack: not implemented")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	return m.wrapErrorUnpack(src)
 }
 
 // wrapErrorUnpack calls the core unpacking logic and wraps any
 // errors in a *UnpackError. It assumes that the mutex is already
 // locked by the caller.
 func (m *Message) wrapErrorUnpack(src []byte) error {
-	return errors.New("wrapErrorUnpack: not implemented")
+	fieldID, err := m.unpack(src)
+	if err != nil {
+		return &iso8583errors.UnpackError{
+			Err:        err,
+			FieldID:    fieldID,
+			RawMessage: src,
+		}
+	}
+	return nil
 }
 
 // unpack contains the core logic for unpacking the message. This method does
 // not handle locking or error wrapping and should typically be used internally
 // after ensuring concurrency safety.
 func (m *Message) unpack(src []byte) (string, error) {
-	return "", errors.New("unpack: not implemented")
+	// Reset state
+	m.fieldsMap = map[int]struct{}{}
+	bitmap := m.bitmap()
+	bitmap.Reset()
+	
+	offset := 0
+	
+	// Unpack MTI (index 0)
+	mtiField := m.fields[mtiIdx]
+	read, err := mtiField.Unpack(src)
+	if err != nil {
+		return "0", fmt.Errorf("failed to unpack MTI: %w", err)
+	}
+	m.fieldsMap[mtiIdx] = struct{}{}
+	offset += read
+	
+	// Unpack Bitmap (index 1)
+	bitmapField := m.fields[bitmapIdx]
+	read, err = bitmapField.Unpack(src[offset:])
+	if err != nil {
+		return "1", fmt.Errorf("failed to unpack bitmap: %w", err)
+	}
+	// Bitmap automatically sets itself in fieldsMap via bitmap() call
+	offset += read
+	
+	// Unpack data fields
+	for i := 2; i <= bitmap.Len(); i++ {
+		// Skip bitmap presence indicator bits (65, 129, 193, etc.)
+		if isBitmapPresenceBit(i) {
+			continue
+		}
+		
+		// Only unpack if the bit is set in the bitmap
+		if !bitmap.IsSet(i) {
+			continue
+		}
+		
+		// Get field from spec
+		field, ok := m.fields[i]
+		if !ok {
+			return strconv.Itoa(i), fmt.Errorf("failed to unpack field %d: no specification found", i)
+		}
+		
+		// Unpack the field
+		read, err := field.Unpack(src[offset:])
+		if err != nil {
+			desc := field.Spec().Description
+			return strconv.Itoa(i), fmt.Errorf("failed to unpack field %d (%s): %w", i, desc, err)
+		}
+		
+		m.fieldsMap[i] = struct{}{}
+		offset += read
+	}
+	
+	return "", nil
 }
 
 func (m *Message) MarshalJSON() ([]byte, error) {
@@ -255,7 +392,43 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 }
 
 func (m *Message) packableFieldIDs() ([]int, error) {
-	return nil, errors.New("packableFieldIDs: not implemented")
+	// Get all field IDs from fieldsMap (fields that have been set)
+	ids := make([]int, 0, len(m.fieldsMap))
+	for id := range m.fieldsMap {
+		// Skip bitmap as it's handled separately
+		if id != bitmapIdx {
+			ids = append(ids, id)
+		}
+	}
+	
+	// Sort field IDs in ascending order
+	for i := 0; i < len(ids); i++ {
+		for j := i + 1; j < len(ids); j++ {
+			if ids[i] > ids[j] {
+				ids[i], ids[j] = ids[j], ids[i]
+			}
+		}
+	}
+	
+	// Build result: MTI (0), bitmap (1), then sorted field IDs (excluding MTI)
+	result := make([]int, 0, len(ids)+2)
+	
+	// Add MTI first if it's set
+	if _, ok := m.fieldsMap[mtiIdx]; ok {
+		result = append(result, mtiIdx)
+	}
+	
+	// Add bitmap
+	result = append(result, bitmapIdx)
+	
+	// Add remaining fields (excluding MTI)
+	for _, id := range ids {
+		if id != mtiIdx {
+			result = append(result, id)
+		}
+	}
+	
+	return result, nil
 }
 
 // Clone clones the message by creating a new message from the binary
@@ -291,28 +464,203 @@ func (m *Message) Clone() (*Message, error) {
 // through the message fields and calls Unmarshal(...) on them setting the v If
 // v is not a struct or not a pointer to struct then it returns error.
 func (m *Message) Marshal(v interface{}) error {
-	return errors.New("Marshal: not implemented")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	// Return nil if v is nil
+	if v == nil {
+		return nil
+	}
+	
+	// Get reflect.Value of v
+	rv := reflect.ValueOf(v)
+	
+	// Dereference pointers and interfaces
+	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+		if rv.IsNil() {
+			return nil
+		}
+		rv = rv.Elem()
+	}
+	
+	// Verify underlying value is a struct
+	if rv.Kind() != reflect.Struct {
+		return errors.New("data is not a struct")
+	}
+	
+	// Marshal the struct
+	return m.marshalStruct(rv)
 }
 
 // marshalStruct is a helper method that handles the core logic of marshaling a struct.
 // It supports anonymous embedded structs by recursively traversing into them when they
 // don't have index tags themselves.
 func (m *Message) marshalStruct(dataStruct reflect.Value) error {
-	return errors.New("marshalStruct: not implemented")
+	// Iterate through struct fields
+	for i := 0; i < dataStruct.NumField(); i++ {
+		structField := dataStruct.Type().Field(i)
+		dataField := dataStruct.Field(i)
+		
+		// Parse the tag to get field ID
+		indexTag := field.NewIndexTag(structField)
+		
+		// Check if this field has a valid index tag
+		if indexTag.ID >= 0 {
+			// Get corresponding message field
+			messageField, ok := m.fields[indexTag.ID]
+			if !ok {
+				return fmt.Errorf("no message field defined by spec with index: %d", indexTag.ID)
+			}
+			
+			// Check if field is zero value and should be skipped
+			if !indexTag.KeepZero && dataField.IsZero() {
+				continue
+			}
+			
+			// Marshal the field
+			if err := messageField.Marshal(dataField.Interface()); err != nil {
+				return fmt.Errorf("failed to set value to field %d: %w", indexTag.ID, err)
+			}
+			
+			// Mark field as set
+			m.fieldsMap[indexTag.ID] = struct{}{}
+		} else if structField.Anonymous {
+			// Handle anonymous embedded struct
+			embeddedValue := dataField
+			
+			// Dereference pointers and interfaces
+			for embeddedValue.Kind() == reflect.Ptr || embeddedValue.Kind() == reflect.Interface {
+				if embeddedValue.IsNil() {
+					break
+				}
+				embeddedValue = embeddedValue.Elem()
+			}
+			
+			// Skip nil embedded structs
+			if !embeddedValue.IsValid() || embeddedValue.IsZero() {
+				continue
+			}
+			
+			// Recursively marshal embedded struct
+			if embeddedValue.Kind() == reflect.Struct {
+				if err := m.marshalStruct(embeddedValue); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	
+	return nil
 }
 
 // Unmarshal populates v struct fields with message field values. It traverses
 // through the message fields and calls Unmarshal(...) on them setting the v If
 // v  is nil or not a pointer it returns error.
 func (m *Message) Unmarshal(v interface{}) error {
-	return errors.New("Unmarshal: not implemented")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	// Verify v is a pointer and not nil
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return errors.New("data is not a pointer or nil")
+	}
+	
+	// Dereference pointer to get struct
+	rv = rv.Elem()
+	
+	// Verify underlying value is a struct
+	if rv.Kind() != reflect.Struct {
+		return errors.New("data is not a struct")
+	}
+	
+	// Unmarshal into the struct
+	return m.unmarshalStruct(rv)
 }
 
 // unmarshalStruct is a helper method that handles the core logic of unmarshaling into a struct.
 // It supports anonymous embedded structs by recursively traversing into them when they
 // don't have index tags themselves.
 func (m *Message) unmarshalStruct(dataStruct reflect.Value) error {
-	return errors.New("unmarshalStruct: not implemented")
+	// Iterate through struct fields
+	for i := 0; i < dataStruct.NumField(); i++ {
+		structField := dataStruct.Type().Field(i)
+		dataField := dataStruct.Field(i)
+		
+		// Parse the tag to get field ID
+		indexTag := field.NewIndexTag(structField)
+		
+		// Check if this field has a valid index tag
+		if indexTag.ID >= 0 {
+			// Get corresponding message field
+			messageField := m.fields[indexTag.ID]
+			if messageField == nil {
+				// Field not in spec, skip
+				continue
+			}
+			
+			// Check if field is set in the message
+			if _, ok := m.fieldsMap[indexTag.ID]; !ok {
+				// Field not present in message, skip
+				continue
+			}
+			
+			// Handle different field kinds
+			switch dataField.Kind() {
+			case reflect.Ptr, reflect.Interface:
+				// Initialize nil pointers
+				if dataField.IsNil() && dataField.CanSet() {
+					dataField.Set(reflect.New(dataField.Type().Elem()))
+				}
+				// Unmarshal into the pointer/interface
+				if err := messageField.Unmarshal(dataField.Interface()); err != nil {
+					return fmt.Errorf("failed to get value from field %d: %w", indexTag.ID, err)
+				}
+			case reflect.Slice:
+				// For slices, pass reflect.Value so slice can be modified
+				if err := messageField.Unmarshal(dataField); err != nil {
+					return fmt.Errorf("failed to get value from field %d: %w", indexTag.ID, err)
+				}
+			default:
+				// For native types, pass the value directly
+				if err := messageField.Unmarshal(dataField); err != nil {
+					return fmt.Errorf("failed to get value from field %d: %w", indexTag.ID, err)
+				}
+			}
+		} else if structField.Anonymous {
+			// Handle anonymous embedded struct
+			embeddedValue := dataField
+			
+			// Try to initialize nil pointer embedded structs
+			if embeddedValue.Kind() == reflect.Ptr {
+				if embeddedValue.IsNil() && embeddedValue.CanSet() {
+					embeddedValue.Set(reflect.New(embeddedValue.Type().Elem()))
+				}
+				if !embeddedValue.IsNil() {
+					embeddedValue = embeddedValue.Elem()
+				}
+			}
+			
+			// Dereference interfaces
+			if embeddedValue.Kind() == reflect.Interface && !embeddedValue.IsNil() {
+				embeddedValue = embeddedValue.Elem()
+			}
+			
+			// Skip if we can't get a valid struct
+			if !embeddedValue.IsValid() {
+				continue
+			}
+			
+			// Recursively unmarshal embedded struct
+			if embeddedValue.Kind() == reflect.Struct {
+				if err := m.unmarshalStruct(embeddedValue); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	
+	return nil
 }
 
 // UnsetField marks the field with the given ID as not set and replaces it with
