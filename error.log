@@ -1,0 +1,47 @@
+[2025-11-17T06:43:50.370915+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
+[2025-11-17T06:43:50.382135+00:00] auth: mode=ChatGPT account_id=167f183d-4868-49eb-816e-0e580fc0de3f
+[2025-11-17T06:43:50.382509+00:00] auth: set ChatGPT-Account-Id header: 167f183d-4868-49eb-816e-0e580fc0de3f
+[2025-11-17T06:43:50.385529+00:00] startup: wham_force_internal=false ua=codex_cli_rs/0.58.0 (Mac OS 15.5.0; arm64) Apple_Terminal/455.1 (codex_cloud_tasks_tui)
+[2025-11-17T06:43:50.413641+00:00] env: git origins: ["git@github.com:jdocherty/iso8583.git"]
+[2025-11-17T06:43:50.413631+00:00[] 2025-11-17T06:43:50.413704+00:00env: parsed SSH GitHub origin => jdocherty/iso8583] 
+env: parsed SSH GitHub origin => jdocherty/iso8583
+[2025-11-17T06:43:50.413905+00:00] env: GET https://chatgpt.com/backend-api/wham/environments/by-repo/github/jdocherty/iso8583
+[2025-11-17T06:43:51.121344+00:00] http.list_tasks: env=<all> items=1
+[2025-11-17T06:43:51.121668+00:00] refresh.apply: env=<all> count=1
+[2025-11-17T06:43:51.617699+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:43:51.620809+00:00] env: by-repo returned 1 env(s) for jdocherty/iso8583
+[2025-11-17T06:43:51.621493+00:00] env: single environment available; selecting it
+[2025-11-17T06:43:51.621779+00:00] env.select: autodetected id=691ab03eae748191a562e60859464a4c label=iso8583
+[2025-11-17T06:43:51.651152+00:00] env: parsed SSH GitHub origin => jdocherty/iso8583
+[2025-11-17T06:43:51.755064+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:43:51.842927+00:00] http.list_tasks: env=691ab03eae748191a562e60859464a4c items=1
+[2025-11-17T06:43:51.853972+00:00] refresh.apply: env=691ab03eae748191a562e60859464a4c count=1
+[2025-11-17T06:43:52.015314+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:43:52.268394+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:43:52.517228+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:44:10.772055+00:00] new-task: submit env=691ab03eae748191a562e60859464a4c size=37
+[2025-11-17T06:44:12.045423+00:00] new_task: created id=task_e_691ac43b31d083299c9dac98bac8bcdd env=691ab03eae748191a562e60859464a4c prompt_chars=37
+[2025-11-17T06:44:12.046055+00:00] new-task: created id=task_e_691ac43b31d083299c9dac98bac8bcdd
+[2025-11-17T06:44:12.253171+00:00] http.list_tasks: env=691ab03eae748191a562e60859464a4c items=2
+[2025-11-17T06:44:12.255062+00:00] refresh.apply: env=691ab03eae748191a562e60859464a4c count=2
+[2025-11-17T06:46:02.059392+00:00] startup: base_url=https://chatgpt.com/backend-api path_style=wham
+[2025-11-17T06:46:02.063780+00:00] auth: mode=ChatGPT account_id=167f183d-4868-49eb-816e-0e580fc0de3f
+[2025-11-17T06:46:02.063853+00:00] auth: set ChatGPT-Account-Id header: 167f183d-4868-49eb-816e-0e580fc0de3f
+[2025-11-17T06:46:02.066504+00:00] startup: wham_force_internal=false ua=codex_cli_rs/0.58.0 (Mac OS 15.5.0; arm64) Apple_Terminal/455.1 (codex_cloud_tasks_tui)
+[2025-11-17T06:46:02.093307+00:00[] 2025-11-17T06:46:02.093309+00:00env: parsed SSH GitHub origin => jdocherty/iso8583] 
+env: git origins: ["git@github.com:jdocherty/iso8583.git"]
+[2025-11-17T06:46:02.093390+00:00] env: parsed SSH GitHub origin => jdocherty/iso8583
+[2025-11-17T06:46:02.093430+00:00] env: GET https://chatgpt.com/backend-api/wham/environments/by-repo/github/jdocherty/iso8583
+[2025-11-17T06:46:02.982070+00:00] http.list_tasks: env=<all> items=2
+[2025-11-17T06:46:02.982392+00:00] refresh.apply: env=<all> count=2
+[2025-11-17T06:46:03.659650+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:46:03.660044+00:00] env: by-repo returned 1 env(s) for jdocherty/iso8583
+[2025-11-17T06:46:03.660363+00:00] env: single environment available; selecting it
+[2025-11-17T06:46:03.660501+00:00] env.select: autodetected id=691ab03eae748191a562e60859464a4c label=iso8583
+[2025-11-17T06:46:03.692334+00:00] env: parsed SSH GitHub origin => jdocherty/iso8583
+[2025-11-17T06:46:03.695865+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:46:03.874975+00:00] http.list_tasks: env=691ab03eae748191a562e60859464a4c items=2
+[2025-11-17T06:46:03.875367+00:00] refresh.apply: env=691ab03eae748191a562e60859464a4c count=2
+[2025-11-17T06:46:03.946895+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:46:04.708469+00:00] env: status=200 OK content-type=application/json
+[2025-11-17T06:46:04.979173+00:00] env: status=200 OK content-type=application/json
