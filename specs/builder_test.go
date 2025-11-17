@@ -283,6 +283,7 @@ func TestExportImportWithNonePrefixField(t *testing.T) {
 	specJSON, err := Builder.ExportJSON(spec)
 	require.NoError(t, err)
 
-	spec, err = Builder.ImportJSON(specJSON)
+	importedSpec, err := Builder.ImportJSON(specJSON)
 	require.NoError(t, err)
+	require.NotNil(t, importedSpec)
 }

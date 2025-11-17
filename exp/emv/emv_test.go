@@ -47,5 +47,6 @@ func TestEmv(t *testing.T) {
 	require.NoError(t, err)
 
 	packed2, err := msg2.Pack()
+	require.NoError(t, err)
 	require.Equal(t, packed, packed2)
 }

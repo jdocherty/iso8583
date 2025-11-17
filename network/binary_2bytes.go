@@ -33,7 +33,7 @@ func (h *Binary2Bytes) Length() int {
 func (h *Binary2Bytes) WriteTo(w io.Writer) (int, error) {
 	err := binary.Write(w, binary.BigEndian, h.Len)
 	if err != nil {
-		return 0, fmt.Errorf("wrigint uint16 into writer: %w", err)
+		return 0, fmt.Errorf("writing uint16 into writer: %w", err)
 	}
 
 	return binary.Size(h.Len), nil

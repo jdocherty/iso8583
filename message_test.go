@@ -3092,10 +3092,6 @@ func TestAnonymousEmbeddedStructSupport(t *testing.T) {
 			SecurityData               // Anonymous embedded - F70 should be discovered
 		}
 
-		type SecurityData2 struct {
-			EmvData *field.String `index:"90"`
-		}
-
 		data := &TransactionData{
 			F0: field.NewStringValue("0100"),
 			F2: field.NewStringValue("4242424242424242"),

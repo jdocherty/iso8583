@@ -52,7 +52,7 @@ func (h *VMLH) WriteTo(w io.Writer) (int, error) {
 
 	err := binary.Write(&buf, binary.BigEndian, h.Len)
 	if err != nil {
-		return 0, fmt.Errorf("wrigint uint16 into writer: %w", err)
+		return 0, fmt.Errorf("writing uint16 into writer: %w", err)
 	}
 
 	_, err = buf.Write([]byte{0x00, 0x00})
